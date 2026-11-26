@@ -14,7 +14,10 @@
 <header class="main-header">
   <div class="brand">
     <div class="brand-logo">ST</div>
-    <div><h1>SHIVAM TUTORIALS</h1><p>STUDENT MANAGEMENT SYSTEM</p></div>
+    <div>
+      <h1>SHIVAM TUTORIALS</h1>
+      <p>STUDENT MANAGEMENT SYSTEM</p>
+    </div>
   </div>
 </header>
 
@@ -29,20 +32,19 @@
 </nav>
 
 <main class="container">
-
   <section class="section-card">
     <h2>Daily Attendance</h2>
     <p class="muted">Select a class and tap a student to mark attendance.</p>
 
     <div class="form-group" style="margin-top:18px">
-      <label>Select Class</label>
+      <label for="classSelect">Select Class</label>
       <select id="classSelect">
         <option value="">Choose Class</option>
       </select>
     </div>
 
     <div class="form-group">
-      <label>Attendance Date</label>
+      <label for="attendanceDate">Attendance Date</label>
       <input type="date" id="attendanceDate">
     </div>
 
@@ -66,7 +68,6 @@
       Select a class to display active students.
     </p>
   </section>
-
 </main>
 
 <footer class="main-footer">
@@ -76,203 +77,239 @@
 
 <script src="../js/database.js"></script>
 <script>
-  const classSelect = document.getElementById("classSelect");
-  const dateInput = document.getElementById("attendanceDate");
-  const studentList = document.getElementById("studentList");
+const classSelect = document.getElementById("classSelect");
+const dateInput = document.getElementById("attendanceDate");
+const studentList = document.getElementById("studentList");
+const emptyMessage = document.getElementById("emptyMessage");
 
-  let activeStudents = [];
-  let attendanceRecords = [];
+let activeStudents = [];
+let attendanceRecords = [];
 
-  function localDateString() {
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    return new Date(now.getTime() - offset * 60000)
-      .toISOString().slice(0, 10);
-  }
+function localDateString() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
 
-  async function initialiseAttendance() {
-    await DB.init();
-
-    dateInput.value = localDateString();
-
-    const students = await DB.getAll("students");
-    activeStudents = students.filter(s => s.status === "Active");
-
-    const classes = [...new Set(activeStudents.map(s => s.className))]
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-    classes.forEach(className => {
-      const option = document.createElement("option");
-      option.value = className;
-      option.textContent = className;
-      classSelect.appendChild(option);
-    });
-
-    await refreshAttendance();
-  }
-
-  async function refreshAttendance() {
-    const selectedClass = classSelect.value;
-    const selectedDate = dateInput.value;
-
-    if (!selectedClass || !selectedDate) {
-      studentList.innerHTML = "";
-      document.getElementById("emptyMessage").textContent =
-        "Select a class and date to display active students.";
-      updateCounts([]);
-      return;
-    }
-
-    const students = activeStudents.filter(
-      s => s.className === selectedClass
-    );
-
-    const allRecords = await DB.getAll("attendance");
-    attendanceRecords = allRecords.filter(
-      r => r.date === selectedDate
-    );
-
-    renderStudents(students);
-  }
-
-  function renderStudents(students) {
-    studentList.innerHTML = "";
-
-    if (!students.length) {
-      document.getElementById("emptyMessage").textContent =
-        "No active students found in this class.";
-      updateCounts([]);
-      return;
-    }
-
-    document.getElementById("emptyMessage").textContent =
-      "Tap any student to mark or change attendance.";
-
-    students.forEach(student => {
-      const record = attendanceRecords.find(
-        r => r.studentId === student.id
-      );
-
-      const status = record ? record.status : "";
-
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "action-card";
-      card.style.textAlign = "left";
-      card.style.cursor = "pointer";
-
-      const name = document.createElement("strong");
-      name.textContent = student.name;
-
-      const code = document.createElement("small");
-      code.textContent = student.studentCode || student.id;
-
-      const statusText = document.createElement("span");
-      statusText.style.fontSize = "12px";
-      statusText.style.fontWeight = "bold";
-
-      if (status === "Present") {
-        statusText.textContent = "✓ PRESENT";
-        statusText.style.color = "#168443";
-      } else if (status === "Absent") {
-        statusText.textContent = "✕ ABSENT";
-        statusText.style.color = "#d32f2f";
-      } else {
-        statusText.textContent = "NOT MARKED";
-        statusText.style.color = "#777";
-      }
-
-      card.append(name, code, statusText);
-      card.addEventListener("click", () => markAttendance(student, status));
-
-      studentList.appendChild(card);
-    });
-
-    updateCounts(students);
-  }
-
-  async function markAttendance(student, currentStatus) {
-    const result = await Swal.fire({
-      title: student.name,
-      html: `
-        <p>${student.className}</p>
-        <p>${dateInput.value}</p>
-        <p>Choose attendance status:</p>
-      `,
-      icon: "question",
-      showCancelButton: true,
-      showDenyButton: true,
-      confirmButtonText: "Present",
-      denyButtonText: "Absent",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#168443",
-      denyButtonColor: "#d32f2f"
-    });
-
-    let status = "";
-
-    if (result.isConfirmed) {
-      status = "Present";
-    } else if (result.isDenied) {
-      status = "Absent";
-    } else {
-      return;
-    }
-
-    const date = dateInput.value;
-    const recordId = date + "_" + student.id;
-
-    const record = {
-      id: recordId,
-      studentId: student.id,
-      studentCode: student.studentCode,
-      studentName: student.name,
-      className: student.className,
-      date: date,
-      status: status,
-      updatedAt: new Date().toISOString()
-    };
-
-    try {
-      await DB.put("attendance", record);
-      await refreshAttendance();
-
-      Swal.fire({
-        toast: true,
-        position: "top",
-        icon: "success",
-        title: student.name + ": " + status,
-        showConfirmButton: false,
-        timer: 1200
-      });
-    } catch (error) {
-      Swal.fire("Error", "Attendance could not be saved.", "error");
-      console.error(error);
-    }
-  }
-
-  function updateCounts(students) {
-    const records = students.map(student =>
-      attendanceRecords.find(r => r.studentId === student.id)
-    );
-
-    const present = records.filter(r => r?.status === "Present").length;
-    const absent = records.filter(r => r?.status === "Absent").length;
-    const pending = students.length - present - absent;
-
-    document.getElementById("presentCount").textContent = present;
-    document.getElementById("absentCount").textContent = absent;
-    document.getElementById("pendingCount").textContent = pending;
-  }
-
-  classSelect.addEventListener("change", refreshAttendance);
-  dateInput.addEventListener("change", refreshAttendance);
-
-  initialiseAttendance().catch(error => {
-    console.error(error);
-    Swal.fire("Database Error", "Unable to load attendance.", "error");
+function showError(title, error) {
+  console.error(title, error);
+  Swal.fire({
+    icon: "error",
+    title,
+    text: error && error.message
+      ? error.message
+      : "An unexpected error occurred. Please reload and try again."
   });
+}
+
+async function initialiseAttendance() {
+  await DB.init();
+  dateInput.value = localDateString();
+
+  const students = await DB.getAll("students");
+
+  activeStudents = students.filter(student =>
+    String(student.status || "").trim().toLowerCase() === "active"
+  );
+
+  const classes = [...new Set(
+    activeStudents.map(student => student.className).filter(Boolean)
+  )].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  );
+
+  classSelect.innerHTML = '<option value="">Choose Class</option>';
+
+  classes.forEach(className => {
+    const option = document.createElement("option");
+    option.value = className;
+    option.textContent = className;
+    classSelect.appendChild(option);
+  });
+
+  await refreshAttendance();
+}
+
+async function refreshAttendance() {
+  const selectedClass = classSelect.value;
+  const selectedDate = dateInput.value;
+
+  if (!selectedClass || !selectedDate) {
+    studentList.innerHTML = "";
+    emptyMessage.textContent =
+      "Select a class and date to display active students.";
+    attendanceRecords = [];
+    updateCounts([]);
+    return;
+  }
+
+  const students = activeStudents.filter(student =>
+    student.className === selectedClass
+  );
+
+  const allRecords = await DB.getAll("attendance");
+
+  attendanceRecords = allRecords.filter(record =>
+    record.date === selectedDate
+  );
+
+  renderStudents(students);
+}
+
+function renderStudents(students) {
+  studentList.innerHTML = "";
+
+  if (!students.length) {
+    emptyMessage.textContent = "No active students found in this class.";
+    updateCounts([]);
+    return;
+  }
+
+  emptyMessage.textContent =
+    "Tap any student to mark or change attendance.";
+
+  students.forEach(student => {
+    const record = attendanceRecords.find(item =>
+      String(item.studentId) === String(student.id)
+    );
+
+    const status = record ? record.status : "";
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "action-card";
+    card.style.textAlign = "left";
+    card.style.cursor = "pointer";
+
+    const name = document.createElement("strong");
+    name.textContent = student.name || "Unnamed Student";
+
+    const code = document.createElement("small");
+    code.textContent = student.studentCode || student.id;
+
+    const statusText = document.createElement("span");
+    statusText.style.fontSize = "12px";
+    statusText.style.fontWeight = "bold";
+
+    if (status === "Present") {
+      statusText.textContent = "✓ PRESENT";
+      statusText.style.color = "#168443";
+    } else if (status === "Absent") {
+      statusText.textContent = "✕ ABSENT";
+      statusText.style.color = "#d32f2f";
+    } else {
+      statusText.textContent = "NOT MARKED";
+      statusText.style.color = "#777";
+    }
+
+    card.append(name, code, statusText);
+    card.addEventListener("click", () => markAttendance(student));
+    studentList.appendChild(card);
+  });
+
+  updateCounts(students);
+}
+
+async function markAttendance(student) {
+  const result = await Swal.fire({
+    title: student.name,
+    html: `
+      <p>${student.className || ""}</p>
+      <p>${dateInput.value}</p>
+      <p>Choose attendance status:</p>
+    `,
+    icon: "question",
+    showCancelButton: true,
+    showDenyButton: true,
+    confirmButtonText: "Present",
+    denyButtonText: "Absent",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#168443",
+    denyButtonColor: "#d32f2f"
+  });
+
+  let status = "";
+
+  if (result.isConfirmed) {
+    status = "Present";
+  } else if (result.isDenied) {
+    status = "Absent";
+  } else {
+    return;
+  }
+
+  const date = dateInput.value;
+
+  if (!date) {
+    showError("Select a date", new Error("Please select an attendance date."));
+    return;
+  }
+
+  const studentId = String(student.id);
+  const record = {
+    id: date + "_" + studentId,
+    studentId,
+    studentCode: student.studentCode || "",
+    studentName: student.name || "",
+    className: student.className || "",
+    date,
+    status,
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    await DB.put("attendance", record);
+    await refreshAttendance();
+
+    await Swal.fire({
+      toast: true,
+      position: "top",
+      icon: "success",
+      title: student.name + ": " + status,
+      showConfirmButton: false,
+      timer: 1200
+    });
+  } catch (error) {
+    showError("Attendance could not be saved", error);
+  }
+}
+
+function updateCounts(students) {
+  const records = students.map(student =>
+    attendanceRecords.find(record =>
+      String(record.studentId) === String(student.id)
+    )
+  );
+
+  const present = records.filter(record =>
+    record && record.status === "Present"
+  ).length;
+
+  const absent = records.filter(record =>
+    record && record.status === "Absent"
+  ).length;
+
+  document.getElementById("presentCount").textContent = present;
+  document.getElementById("absentCount").textContent = absent;
+  document.getElementById("pendingCount").textContent =
+    Math.max(0, students.length - present - absent);
+}
+
+classSelect.addEventListener("change", () => {
+  refreshAttendance().catch(error =>
+    showError("Unable to load attendance", error)
+  );
+});
+
+dateInput.addEventListener("change", () => {
+  refreshAttendance().catch(error =>
+    showError("Unable to load attendance", error)
+  );
+});
+
+initialiseAttendance().catch(error =>
+  showError("Database Error", error)
+);
 </script>
 
 </body>

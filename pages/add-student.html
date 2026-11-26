@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add Student | Shivam Tutorials</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+<header class="main-header">
+  <div class="brand">
+    <div class="brand-logo">ST</div>
+    <div>
+      <h1>SHIVAM TUTORIALS</h1>
+      <p>STUDENT MANAGEMENT SYSTEM</p>
+    </div>
+  </div>
+</header>
+
+<nav class="main-nav">
+  <a href="../index.html">Dashboard</a>
+  <a class="active" href="add-student.html">Add Student</a>
+  <a href="view-students.html">Students</a>
+  <a href="attendance.html">Attendance</a>
+  <a href="attendance-report.html">Attendance Report</a>
+  <a href="fees.html">Fees</a>
+  <a href="reports.html">Excel & Reports</a>
+</nav>
+
+<main class="container">
+  <section class="section-card">
+    <h2>Add New Student</h2>
+    <p class="muted">Enter the student's details below.</p>
+
+    <form id="studentForm">
+
+      <div class="form-group">
+        <label>Student Name *</label>
+        <input type="text" id="name" required>
+      </div>
+
+      <div class="form-group">
+        <label>Class / Course *</label>
+        <select id="className" required>
+          <option value="">Select Class</option>
+          <option>Nursery</option>
+          <option>Junior KG</option>
+          <option>Senior KG</option>
+          <option>1st</option>
+          <option>2nd</option>
+          <option>3rd</option>
+          <option>4th</option>
+          <option>5th</option>
+          <option>6th</option>
+          <option>7th</option>
+          <option>8th</option>
+          <option>9th</option>
+          <option>10th</option>
+          <option>11th PCM</option>
+          <option>11th PCMB</option>
+          <option>12th PCM</option>
+          <option>12th PCMB</option>
+          <option>Diploma</option>
+          <option>Degree</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Board</label>
+        <select id="board">
+          <option value="">Select Board</option>
+          <option>SSC</option>
+          <option>CBSE</option>
+          <option>ICSE</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>WhatsApp Number</label>
+        <input type="tel" id="whatsapp" inputmode="numeric"
+               maxlength="10" pattern="[0-9]{10}">
+      </div>
+
+      <div class="form-group">
+        <label>Total Fees (₹) *</label>
+        <input type="number" id="totalFees" min="0" step="1" required>
+      </div>
+
+      <div class="form-group">
+        <label>Admission Date *</label>
+        <input type="date" id="admissionDate" required>
+      </div>
+
+      <button class="btn" type="submit">Save Student</button>
+      <a href="view-students.html" class="btn btn-secondary">View Students</a>
+
+    </form>
+  </section>
+</main>
+
+<footer class="main-footer">
+  <strong>SHIVAM TUTORIALS</strong>
+  <p>Education with Excellence • Since 2019</p>
+</footer>
+
+<script src="../js/database.js"></script>
+<script>
+  const dateInput = document.getElementById("admissionDate");
+  dateInput.value = new Date().toLocaleDateString("en-CA");
+
+  document.getElementById("studentForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    try {
+      await DB.init();
+
+      const students = await DB.getAll("students");
+      const nextNumber = students.length + 1;
+
+      const student = {
+        id: "ST" + String(Date.now()),
+        studentCode: "ST" + String(nextNumber).padStart(4, "0"),
+        name: document.getElementById("name").value.trim(),
+        className: document.getElementById("className").value,
+        board: document.getElementById("board").value,
+        whatsapp: document.getElementById("whatsapp").value.trim(),
+        totalFees: Number(document.getElementById("totalFees").value),
+        admissionDate: dateInput.value,
+        status: "Active",
+        createdAt: new Date().toISOString()
+      };
+
+      if (!student.name) {
+        throw new Error("Please enter the student's name.");
+      }
+
+      if (student.whatsapp && !/^[0-9]{10}$/.test(student.whatsapp)) {
+        throw new Error("Enter a valid 10-digit WhatsApp number.");
+      }
+
+      await DB.add("students", student);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Student Added",
+        text: student.name + " has been registered successfully."
+      });
+
+      this.reset();
+      dateInput.value = new Date().toLocaleDateString("en-CA");
+
+    } catch (error) {
+      Swal.fire("Unable to save", error.message || "Please try again.", "error");
+    }
+  });
+</script>
+</body>
+</html>

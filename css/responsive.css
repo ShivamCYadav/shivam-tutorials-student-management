@@ -1,0 +1,80 @@
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .main-header {
+    padding: 13px 4%;
+  }
+
+  .brand h1 {
+    font-size: 17px;
+  }
+
+  .brand p {
+    font-size: 9px;
+  }
+
+  .brand-logo {
+    width: 42px;
+    height: 42px;
+    font-size: 19px;
+  }
+
+  .main-nav {
+    padding: 8px 3%;
+  }
+
+  .container {
+    width: 94%;
+    margin: 18px auto;
+  }
+
+  .welcome-section {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .welcome-section h2 {
+    font-size: 21px;
+  }
+
+  .today-date {
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    gap: 9px;
+  }
+
+  .stat-card {
+    padding: 13px;
+  }
+
+  .stat-card h2 {
+    font-size: 21px;
+  }
+
+  .quick-actions {
+    gap: 9px;
+  }
+
+  .action-card {
+    padding: 14px 10px;
+  }
+
+  .section-card {
+    padding: 15px;
+  }
+
+  .data-table {
+    min-width: 650px;
+  }
+}

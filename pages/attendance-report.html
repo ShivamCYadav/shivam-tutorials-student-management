@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance Report | Shivam Tutorials</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<header class="main-header">
+  <div class="brand"><div class="brand-logo">ST</div><div><h1>SHIVAM TUTORIALS</h1><p>STUDENT MANAGEMENT SYSTEM</p></div></div>
+</header>
+<nav class="main-nav">
+  <a href="../index.html">Dashboard</a>
+  <a href="add-student.html">Add Student</a>
+  <a href="view-students.html">Students</a>
+  <a href="attendance.html">Attendance</a>
+  <a class="active" href="attendance-report.html">Attendance Report</a>
+  <a href="fees.html">Fees</a>
+  <a href="reports.html">Excel & Reports</a>
+</nav>
+
+<main class="container">
+  <section class="section-card">
+    <h2>Monthly Attendance Report</h2>
+
+    <div class="form-group">
+      <label>Class</label>
+      <select id="classSelect"><option value="">Select Class</option></select>
+    </div>
+
+    <div class="form-group">
+      <label>Month</label>
+      <input type="month" id="monthSelect">
+    </div>
+
+    <button class="btn" id="showReport">Show Report</button>
+
+    <div style="overflow-x:auto;margin-top:20px">
+      <table class="data-table">
+        <thead id="reportHead"></thead>
+        <tbody id="reportBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="main-footer">
+  <strong>SHIVAM TUTORIALS</strong>
+  <p>Education with Excellence • Since 2019</p>
+</footer>
+
+<script src="../js/database.js"></script>
+<script>
+async function initialiseReport() {
+  await DB.init();
+
+  const students = await DB.getAll("students");
+  const classes = [...new Set(students.map(s => s.className))]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  classes.forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    classSelect.appendChild(option);
+  });
+
+  const now = new Date();
+  monthSelect.value = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0");
+}
+
+async function showReport() {
+  const className = classSelect.value;
+  const month = monthSelect.value;
+
+  if (!className || !month) {
+    alert("Select a class and month.");
+    return;
+  }
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const days = new Date(year, monthNumber, 0).getDate();
+
+  const students = (await DB.getAll("students"))
+    .filter(s => s.className === className);
+
+  const records = (await DB.getAll("attendance"))
+    .filter(r => r.date.startsWith(month));
+
+  reportHead.innerHTML = "";
+  reportBody.innerHTML = "";
+
+  const headerRow = document.createElement("tr");
+
+  ["Student Name", "Status"].forEach(text => {
+    const th = document.createElement("th");
+    th.textContent = text;
+    headerRow.appendChild(th);
+  });
+
+  for (let day = 1; day <= days; day++) {
+    const th = document.createElement("th");
+    th.textContent = day;
+    headerRow.appendChild(th);
+  }
+
+  reportHead.appendChild(headerRow);
+
+  students.forEach(student => {
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = student.name;
+    row.appendChild(nameCell);
+
+    const marked = records.filter(r => r.studentId === student.id);
+    const present = marked.filter(r => r.status === "Present").length;
+    const absent = marked.filter(r => r.status === "Absent").length;
+
+    const summaryCell = document.createElement("td");
+    summaryCell.textContent = "P: " + present + " / A: " + absent;
+    row.appendChild(summaryCell);
+
+    for (let day = 1; day <= days; day++) {
+      const date = month + "-" + String(day).padStart(2, "0");
+      const record = records.find(
+        r => r.studentId === student.id && r.date === date
+      );
+
+      const td = document.createElement("td");
+      td.textContent = record
+        ? (record.status === "Present" ? "P" : "A")
+        : "";
+      row.appendChild(td);
+    }
+
+    reportBody.appendChild(row);
+  });
+
+  if (!students.length) {
+    reportBody.innerHTML =
+      '<tr><td colspan="' + (days + 2) + '">No students found.</td></tr>';
+  }
+}
+
+document.getElementById("showReport")
+  .addEventListener("click", showReport);
+
+initialiseReport().catch(console.error);
+</script>
+</body>
+</html>

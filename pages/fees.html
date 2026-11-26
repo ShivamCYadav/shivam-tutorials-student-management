@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fees | Shivam Tutorials</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+<header class="main-header">
+  <div class="brand"><div class="brand-logo">ST</div><div><h1>SHIVAM TUTORIALS</h1><p>STUDENT MANAGEMENT SYSTEM</p></div></div>
+</header>
+<nav class="main-nav">
+  <a href="../index.html">Dashboard</a>
+  <a href="add-student.html">Add Student</a>
+  <a href="view-students.html">Students</a>
+  <a href="attendance.html">Attendance</a>
+  <a href="attendance-report.html">Attendance Report</a>
+  <a class="active" href="fees.html">Fees</a>
+  <a href="reports.html">Excel & Reports</a>
+</nav>
+
+<main class="container">
+  <section class="section-card">
+    <h2>Record Fee Payment</h2>
+
+    <div class="form-group">
+      <label>Select Student</label>
+      <select id="studentSelect">
+        <option value="">Choose Student</option>
+      </select>
+    </div>
+
+    <div id="studentFeeInfo" class="muted"></div>
+
+    <form id="paymentForm">
+      <div class="form-group">
+        <label>Payment Amount (₹)</label>
+        <input type="number" id="amount" min="1" required>
+      </div>
+
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input type="date" id="paymentDate" required>
+      </div>
+
+      <div class="form-group">
+        <label>Payment Mode</label>
+        <select id="paymentMode">
+          <option>Cash</option>
+          <option>UPI</option>
+          <option>Bank Transfer</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Notes / Receipt Number</label>
+        <input type="text" id="notes">
+      </div>
+
+      <button class="btn" type="submit">Save Payment</button>
+    </form>
+  </section>
+
+  <section class="section-card">
+    <h3>Payment History</h3>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Student</th><th>Amount</th><th>Mode</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="paymentRows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="main-footer">
+  <strong>SHIVAM TUTORIALS</strong>
+  <p>Education with Excellence • Since 2019</p>
+</footer>
+
+<script src="../js/database.js"></script>
+<script>
+let students = [];
+
+function today() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10);
+}
+
+async function loadFees() {
+  await DB.init();
+  students = await DB.getAll("students");
+
+  const select = document.getElementById("studentSelect");
+  students.forEach(s => {
+    const option = document.createElement("option");
+    option.value = s.id;
+    option.textContent = s.name + " (" + s.className + ")";
+    select.appendChild(option);
+  });
+
+  document.getElementById("paymentDate").value = today();
+  await renderPayments();
+}
+
+async function updateStudentInfo() {
+  const student = students.find(s => s.id === studentSelect.value);
+  const info = document.getElementById("studentFeeInfo");
+
+  if (!student) {
+    info.textContent = "";
+    return;
+  }
+
+  const payments = (await DB.getAll("payments"))
+    .filter(p => p.studentId === student.id);
+
+  const paid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const balance = Number(student.totalFees || 0) - paid;
+
+  info.textContent =
+    "Total: ₹" + Number(student.totalFees || 0).toLocaleString("en-IN") +
+    " | Paid: ₹" + paid.toLocaleString("en-IN") +
+    " | Balance: ₹" + balance.toLocaleString("en-IN");
+}
+
+async function renderPayments() {
+  const payments = await DB.getAll("payments");
+  payments.sort((a, b) => b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById("paymentRows");
+  tbody.innerHTML = "";
+
+  payments.forEach(p => {
+    const student = students.find(s => s.id === p.studentId);
+    const row = document.createElement("tr");
+
+    [
+      p.date,
+      student?.name || p.studentName || "Unknown",
+      "₹" + Number(p.amount).toLocaleString("en-IN"),
+      p.mode || "",
+      p.notes || ""
+    ].forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = value;
+      row.appendChild(td);
+    });
+
+    tbody.appendChild(row);
+  });
+
+  if (!payments.length) {
+    tbody.innerHTML = '<tr><td colspan="5">No payments recorded.</td></tr>';
+  }
+}
+
+studentSelect.addEventListener("change", updateStudentInfo);
+
+document.getElementById("paymentForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const student = students.find(s => s.id === studentSelect.value);
+  const amount = Number(document.getElementById("amount").value);
+
+  if (!student) {
+    Swal.fire("Select Student", "Please select a student.", "warning");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    Swal.fire("Invalid Amount", "Enter a payment greater than zero.", "warning");
+    return;
+  }
+
+  const payments = await DB.getAll("payments");
+  const alreadyPaid = payments
+    .filter(p => p.studentId === student.id)
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  if (alreadyPaid + amount > Number(student.totalFees || 0)) {
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Payment exceeds remaining fees",
+      text: "Do you still want to record this payment?",
+      showCancelButton: true,
+      confirmButtonText: "Record anyway"
+    });
+
+    if (!result.isConfirmed) return;
+  }
+
+  const payment = {
+    id: "PAY" + Date.now(),
+    studentId: student.id,
+    studentName: student.name,
+    amount,
+    date: document.getElementById("paymentDate").value,
+    mode: document.getElementById("paymentMode").value,
+    notes: document.getElementById("notes").value.trim(),
+    createdAt: new Date().toISOString()
+  };
+
+  await DB.add("payments", payment);
+
+  e.target.reset();
+  document.getElementById("paymentDate").value = today();
+
+  await renderPayments();
+  await updateStudentInfo();
+
+  Swal.fire("Saved", "Payment recorded successfully.", "success");
+});
+
+loadFees().catch(error => Swal.fire("Error", error.message, "error"));
+</script>
+</body>
+</html>

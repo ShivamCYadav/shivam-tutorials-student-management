@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Profile | Shivam Tutorials</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+<header class="main-header">
+  <div class="brand"><div class="brand-logo">ST</div><div><h1>SHIVAM TUTORIALS</h1><p>STUDENT MANAGEMENT SYSTEM</p></div></div>
+</header>
+<nav class="main-nav">
+  <a href="../index.html">Dashboard</a>
+  <a href="add-student.html">Add Student</a>
+  <a href="view-students.html">Students</a>
+  <a href="attendance.html">Attendance</a>
+  <a href="attendance-report.html">Attendance Report</a>
+  <a href="fees.html">Fees</a>
+  <a href="reports.html">Excel & Reports</a>
+</nav>
+
+<main class="container">
+  <section class="section-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <h2 id="studentName">Student Profile</h2>
+        <p id="studentCode" class="muted"></p>
+      </div>
+      <span id="statusBadge" class="badge"></span>
+    </div>
+
+    <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
+
+    <h3>Personal Details</h3>
+    <div id="details"></div>
+
+    <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
+
+    <h3>Fee Summary</h3>
+    <div id="feeSummary"></div>
+
+    <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
+
+    <h3>Attendance Summary</h3>
+    <div id="attendanceSummary"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px">
+      <button class="btn" id="statusButton">Change Status</button>
+      <a class="btn btn-secondary" href="view-students.html">Back to Students</a>
+    </div>
+  </section>
+</main>
+
+<footer class="main-footer">
+  <strong>SHIVAM TUTORIALS</strong>
+  <p>Education with Excellence • Since 2019</p>
+</footer>
+
+<script src="../js/database.js"></script>
+<script>
+let student;
+
+function addDetail(label, value) {
+  const p = document.createElement("p");
+  p.style.margin = "8px 0";
+  const strong = document.createElement("strong");
+  strong.textContent = label + ": ";
+  p.append(strong, document.createTextNode(value || "Not provided"));
+  return p;
+}
+
+async function loadProfile() {
+  await DB.init();
+
+  const id = new URLSearchParams(location.search).get("id");
+  if (!id) throw new Error("Student ID is missing.");
+
+  student = await DB.get("students", id);
+  if (!student) throw new Error("Student not found.");
+
+  document.getElementById("studentName").textContent = student.name;
+  document.getElementById("studentCode").textContent =
+    student.studentCode || student.id;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = student.status;
+  badge.className = student.status === "Active"
+    ? "badge badge-active"
+    : "badge badge-inactive";
+
+  const details = document.getElementById("details");
+  details.replaceChildren(
+    addDetail("Class", student.className),
+    addDetail("Board", student.board),
+    addDetail("WhatsApp", student.whatsapp),
+    addDetail("Admission Date", student.admissionDate)
+  );
+
+  const payments = (await DB.getAll("payments"))
+    .filter(p => p.studentId === student.id);
+
+  const paid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const total = Number(student.totalFees || 0);
+
+  const feeSummary = document.getElementById("feeSummary");
+  feeSummary.replaceChildren(
+    addDetail("Total Fees", "₹" + total.toLocaleString("en-IN")),
+    addDetail("Paid", "₹" + paid.toLocaleString("en-IN")),
+    addDetail("Balance", "₹" + Math.max(0, total - paid).toLocaleString("en-IN"))
+  );
+
+  const attendance = (await DB.getAll("attendance"))
+    .filter(r => r.studentId === student.id);
+
+  const present = attendance.filter(r => r.status === "Present").length;
+  const absent = attendance.filter(r => r.status === "Absent").length;
+  const marked = present + absent;
+  const percentage = marked ? (present / marked * 100).toFixed(1) : "0.0";
+
+  const summary = document.getElementById("attendanceSummary");
+  summary.replaceChildren(
+    addDetail("Present", present),
+    addDetail("Absent", absent),
+    addDetail("Attendance", percentage + "%")
+  );
+}
+
+document.getElementById("statusButton").addEventListener("click", async () => {
+  if (!student) return;
+
+  const newStatus = student.status === "Active" ? "Deactive" : "Active";
+
+  const result = await Swal.fire({
+    title: newStatus + " student?",
+    text: "Historical attendance and fee records will be preserved.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, change status"
+  });
+
+  if (!result.isConfirmed) return;
+
+  student.status = newStatus;
+  await DB.put("students", student);
+  await loadProfile();
+
+  Swal.fire("Updated", "Student status changed to " + newStatus, "success");
+});
+
+loadProfile().catch(error => {
+  Swal.fire("Error", error.message, "error");
+});
+</script>
+</body>
+</html>

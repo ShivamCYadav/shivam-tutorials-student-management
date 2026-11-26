@@ -247,15 +247,19 @@ async function markAttendance(student) {
 
   const studentId = String(student.id);
   const record = {
-    id: date + "_" + studentId,
-    studentId,
-    studentCode: student.studentCode || "",
-    studentName: student.name || "",
-    className: student.className || "",
-    date,
-    status,
-    updatedAt: new Date().toISOString()
-  };
+  id: String(date) + "_" + String(student.id),
+  studentId: String(student.id),
+  studentCode: String(student.studentCode || ""),
+  studentName: String(student.name || ""),
+  className: String(student.className || ""),
+  date: String(date),
+  status: String(status),
+  updatedAt: new Date().toISOString()
+};
+
+if (!record.id || !record.studentId || !record.date) {
+  throw new Error("Missing attendance ID, student ID, or date.");
+}
 
   try {
     await DB.put("attendance", record);

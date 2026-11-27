@@ -102,6 +102,47 @@ function showError(title, error) {
   });
 }
 
+function getWhatsAppNumber(value) {
+  let number = String(value || "").replace(/\D/g, "");
+
+  if (number.length === 10) {
+    number = "91" + number;
+  } else if (number.length === 11 && number.startsWith("0")) {
+    number = "91" + number.slice(1);
+  }
+
+  if (!/^91[6-9][0-9]{9}$/.test(number)) {
+    return "";
+  }
+
+  return number;
+}
+
+function createWhatsAppLink(student, date) {
+  const number = getWhatsAppNumber(student.whatsapp);
+
+  if (!number) {
+    return "";
+  }
+
+  const formattedDate = new Date(date + "T00:00:00")
+    .toLocaleDateString("en-IN");
+
+  const message =
+    "Namaste,\n\n" +
+    student.name +
+    " (" + (student.className || "") + ") " +
+    "was marked absent today (" + formattedDate + ") " +
+    "at Shivam Tutorials.\n\n" +
+    "Kindly take note.\n\n" +
+    "Regards,\n" +
+    "Prof. Shivam Sir\n" +
+    "Shivam Tutorials";
+
+  return "https://wa.me/" + number +
+    "?text=" + encodeURIComponent(message);
+}
+
 async function initialiseAttendance() {
   await DB.init();
   dateInput.value = localDateString();
@@ -245,34 +286,78 @@ async function markAttendance(student) {
     return;
   }
 
-  const studentId = String(student.id);
   const record = {
-  id: String(date) + "_" + String(student.id),
-  studentId: String(student.id),
-  studentCode: String(student.studentCode || ""),
-  studentName: String(student.name || ""),
-  className: String(student.className || ""),
-  date: String(date),
-  status: String(status),
-  updatedAt: new Date().toISOString()
-};
+    id: String(date) + "_" + String(student.id),
+    studentId: String(student.id),
+    studentCode: String(student.studentCode || ""),
+    studentName: String(student.name || ""),
+    className: String(student.className || ""),
+    date: String(date),
+    status: String(status),
+    updatedAt: new Date().toISOString()
+  };
 
-if (!record.id || !record.studentId || !record.date) {
-  throw new Error("Missing attendance ID, student ID, or date.");
-}
+  if (!record.id || !record.studentId || !record.date) {
+    showError("Invalid attendance", new Error("Missing attendance details."));
+    return;
+  }
 
   try {
     await DB.put("attendance", record);
     await refreshAttendance();
 
-    await Swal.fire({
-      toast: true,
-      position: "top",
-      icon: "success",
-      title: student.name + ": " + status,
-      showConfirmButton: false,
-      timer: 1200
-    });
+    if (status === "Absent") {
+      const whatsappLink = createWhatsAppLink(student, date);
+
+      if (whatsappLink) {
+        await Swal.fire({
+          icon: "success",
+          title: "Attendance Saved",
+          html: `
+            <p><strong>${student.name}</strong> has been marked absent.</p>
+            <p>Notify the parent through WhatsApp:</p>
+            <a href="${whatsappLink}"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="
+                 display:inline-block;
+                 background:#25D366;
+                 color:white;
+                 padding:12px 22px;
+                 border-radius:8px;
+                 text-decoration:none;
+                 font-weight:bold;
+                 margin-top:10px;
+               ">
+              Open WhatsApp
+            </a>
+            <p style="font-size:12px;margin-top:12px">
+              WhatsApp will open with a prepared message.
+              Please press Send to deliver it.
+            </p>
+          `,
+          confirmButtonText: "Done"
+        });
+      } else {
+        await Swal.fire({
+          icon: "warning",
+          title: "Attendance Saved",
+          text: student.name +
+            " has been marked absent, but no valid WhatsApp number is saved for this student. Please update the number in student details.",
+          confirmButtonText: "OK"
+        });
+      }
+    } else {
+      await Swal.fire({
+        toast: true,
+        position: "top",
+        icon: "success",
+        title: student.name + ": Present",
+        showConfirmButton: false,
+        timer: 1200
+      });
+    }
+
   } catch (error) {
     showError("Attendance could not be saved", error);
   }

@@ -2,15 +2,20 @@
 const DB = (() => {
   const DB_NAME = "ShivamTutorialsDB";
   const DB_VERSION = 1;
+  const ALL_STORES = [
+    "students",
+    "attendance",
+    "payments",
+    "settings"
+  ];
+
   let database = null;
 
   function init() {
     return new Promise((resolve, reject) => {
       if (database) {
-        if (database.objectStoreNames) {
-          resolve(database);
-          return;
-        }
+        resolve(database);
+        return;
       }
 
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -19,41 +24,54 @@ const DB = (() => {
         const db = event.target.result;
 
         if (!db.objectStoreNames.contains("students")) {
-          const store = db.createObjectStore("students", { keyPath: "id" });
+          const store = db.createObjectStore("students", {
+            keyPath: "id"
+          });
           store.createIndex("name", "name", { unique: false });
           store.createIndex("status", "status", { unique: false });
           store.createIndex("className", "className", { unique: false });
         }
 
         if (!db.objectStoreNames.contains("attendance")) {
-          const store = db.createObjectStore("attendance", { keyPath: "id" });
+          const store = db.createObjectStore("attendance", {
+            keyPath: "id"
+          });
           store.createIndex("date", "date", { unique: false });
           store.createIndex("studentId", "studentId", { unique: false });
         }
 
         if (!db.objectStoreNames.contains("payments")) {
-          const store = db.createObjectStore("payments", { keyPath: "id" });
+          const store = db.createObjectStore("payments", {
+            keyPath: "id"
+          });
           store.createIndex("studentId", "studentId", { unique: false });
           store.createIndex("date", "date", { unique: false });
         }
 
         if (!db.objectStoreNames.contains("settings")) {
-          db.createObjectStore("settings", { keyPath: "key" });
+          db.createObjectStore("settings", {
+            keyPath: "key"
+          });
         }
       };
 
       request.onsuccess = () => {
         database = request.result;
+
         database.onversionchange = () => {
           database.close();
           database = null;
         };
+
         resolve(database);
       };
 
       request.onerror = () => reject(request.error);
+
       request.onblocked = () => reject(
-        new Error("Database is blocked. Close other open tabs and reload.")
+        new Error(
+          "Database is blocked. Close other open tabs and reload."
+        )
       );
     });
   }
@@ -74,45 +92,120 @@ const DB = (() => {
       }
 
       transaction.oncomplete = () => {
-        resolve(request && "result" in request ? request.result : undefined);
+        resolve(
+          request && "result" in request
+            ? request.result
+            : undefined
+        );
       };
 
       transaction.onerror = () => {
-        reject(transaction.error || new Error("Database transaction failed."));
+        reject(
+          transaction.error ||
+          new Error("Database transaction failed.")
+        );
       };
 
       transaction.onabort = () => {
-        reject(transaction.error || new Error("Database transaction was aborted."));
+        reject(
+          transaction.error ||
+          new Error("Database transaction was aborted.")
+        );
       };
     });
   }
 
   function add(storeName, data) {
-    return operation(storeName, "readwrite", store => store.add(data));
+    return operation(
+      storeName,
+      "readwrite",
+      store => store.add(data)
+    );
   }
 
   function put(storeName, data) {
-    return operation(storeName, "readwrite", store => store.put(data));
+    return operation(
+      storeName,
+      "readwrite",
+      store => store.put(data)
+    );
   }
 
   function get(storeName, id) {
-    return operation(storeName, "readonly", store => store.get(id));
+    return operation(
+      storeName,
+      "readonly",
+      store => store.get(id)
+    );
   }
 
   function getAll(storeName) {
-    return operation(storeName, "readonly", store => store.getAll());
+    return operation(
+      storeName,
+      "readonly",
+      store => store.getAll()
+    );
   }
 
   function remove(storeName, id) {
-    return operation(storeName, "readwrite", store => store.delete(id));
+    return operation(
+      storeName,
+      "readwrite",
+      store => store.delete(id)
+    );
   }
 
   function clear(storeName) {
-    return operation(storeName, "readwrite", store => store.clear());
+    return operation(
+      storeName,
+      "readwrite",
+      store => store.clear()
+    );
+  }
+
+  // Clear the entire database data while preserving its structure.
+  async function resetAll() {
+    const db = await init();
+
+    return new Promise((resolve, reject) => {
+      let transaction;
+
+      try {
+        transaction = db.transaction(
+          ALL_STORES,
+          "readwrite"
+        );
+
+        ALL_STORES.forEach(storeName => {
+          transaction.objectStore(storeName).clear();
+        });
+
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
+      transaction.oncomplete = () => {
+        resolve(true);
+      };
+
+      transaction.onerror = () => {
+        reject(
+          transaction.error ||
+          new Error("Database reset failed.")
+        );
+      };
+
+      transaction.onabort = () => {
+        reject(
+          transaction.error ||
+          new Error("Database reset was cancelled.")
+        );
+      };
+    });
   }
 
   // Replaces all supplied stores atomically.
-  // If any write fails, the transaction is rolled back.
   async function replaceAll(dataByStore) {
     const db = await init();
     const storeNames = Object.keys(dataByStore);
@@ -123,27 +216,36 @@ const DB = (() => {
       let transaction;
 
       try {
-        transaction = db.transaction(storeNames, "readwrite");
+        transaction = db.transaction(
+          storeNames,
+          "readwrite"
+        );
 
         storeNames.forEach(storeName => {
           const store = transaction.objectStore(storeName);
+
           store.clear();
 
           (dataByStore[storeName] || []).forEach(record => {
             store.put(record);
           });
         });
+
       } catch (error) {
         reject(error);
         return;
       }
 
       transaction.oncomplete = () => resolve(true);
+
       transaction.onerror = () => reject(
-        transaction.error || new Error("Backup restore failed.")
+        transaction.error ||
+        new Error("Backup restore failed.")
       );
+
       transaction.onabort = () => reject(
-        transaction.error || new Error("Backup restore was cancelled.")
+        transaction.error ||
+        new Error("Backup restore was cancelled.")
       );
     });
   }
@@ -156,6 +258,7 @@ const DB = (() => {
     getAll,
     remove,
     clear,
+    resetAll,
     replaceAll
   };
 })();

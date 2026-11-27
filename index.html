@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,14 +13,10 @@
 
     <header class="main-header">
         <div class="brand">
-            <div class="brand-logo">
-                ST
-            </div>
+            <div class="brand-logo">ST</div>
             <div>
                 <h1>SHIVAM TUTORIALS</h1>
-                <p>
-                    STUDENT MANAGEMENT SYSTEM
-                </p>
+                <p>STUDENT MANAGEMENT SYSTEM</p>
             </div>
         </div>
     </header>
@@ -32,19 +29,16 @@
         <a href="pages/attendance-report.html">Attendance Report</a>
         <a href="pages/fees.html">Fees</a>
         <a href="pages/reports.html">Excel & Reports</a>
+        <a href="pages/settings.html">⚙️ Settings</a>
     </nav>
 
     <main class="container">
 
         <section class="welcome-section">
             <div>
-                <p class="eyebrow">
-                    WELCOME BACK
-                </p>
+                <p class="eyebrow">WELCOME BACK</p>
                 <h2>Student Management Dashboard</h2>
-                <p>
-                    Manage students, attendance and fees in one place.
-                </p>
+                <p>Manage students, attendance and fees in one place.</p>
             </div>
             <div class="today-date" id="todayDate"></div>
         </section>
@@ -53,33 +47,25 @@
 
             <div class="stat-card">
                 <span class="stat-icon">👨‍🎓</span>
-                <p>
-                    Total Students
-                </p>
+                <p>Total Students</p>
                 <h2 id="totalStudents">0</h2>
             </div>
 
             <div class="stat-card">
                 <span class="stat-icon">🟢</span>
-                <p>
-                    Active Students
-                </p>
+                <p>Active Students</p>
                 <h2 id="activeStudents">0</h2>
             </div>
 
             <div class="stat-card">
                 <span class="stat-icon">💰</span>
-                <p>
-                    Total Fees Collected
-                </p>
+                <p>Total Fees Collected</p>
                 <h2 id="totalCollected">₹0</h2>
             </div>
 
             <div class="stat-card">
                 <span class="stat-icon">⏳</span>
-                <p>
-                    Pending Fees
-                </p>
+                <p>Pending Fees</p>
                 <h2 id="pendingFees">₹0</h2>
             </div>
 
@@ -89,6 +75,7 @@
             <h3>Quick Actions</h3>
 
             <div class="quick-actions">
+
                 <a class="action-card" href="pages/add-student.html">
                     <span>➕</span>
                     <strong>Add Student</strong>
@@ -118,6 +105,13 @@
                     <strong>Excel Backup</strong>
                     <small>Export and restore records</small>
                 </a>
+
+                <a class="action-card" href="pages/settings.html">
+                    <span>⚙️</span>
+                    <strong>Settings</strong>
+                    <small>Database management</small>
+                </a>
+
             </div>
         </section>
 
@@ -136,20 +130,19 @@
 
     <footer class="main-footer">
         <strong>SHIVAM TUTORIALS</strong>
-        <p>
-            Education with Excellence • Since 2019
-        </p>
+        <p>Education with Excellence • Since 2019</p>
     </footer>
 
     <script src="js/database.js"></script>
+
     <script>
         document.getElementById("todayDate").textContent =
-        new Date().toLocaleDateString("en-IN", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric"
-        });
+            new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            });
 
         async function loadDashboard() {
             try {
@@ -158,22 +151,38 @@
                 const students = await DB.getAll("students");
                 const payments = await DB.getAll("payments");
 
-                const active = students.filter(s => s.status === "Active");
-                const collected = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                const totalFees = students.reduce((sum, s) => sum + Number(s.totalFees || 0), 0);
+                const active = students.filter(
+                    s => s.status === "Active"
+                );
 
-                document.getElementById("totalStudents").textContent = students.length;
-                document.getElementById("activeStudents").textContent = active.length;
+                const collected = payments.reduce(
+                    (sum, p) => sum + Number(p.amount || 0), 0
+                );
+
+                const totalFees = students.reduce(
+                    (sum, s) => sum + Number(s.totalFees || 0), 0
+                );
+
+                document.getElementById("totalStudents").textContent =
+                    students.length;
+
+                document.getElementById("activeStudents").textContent =
+                    active.length;
+
                 document.getElementById("totalCollected").textContent =
-                "₹" + collected.toLocaleString("en-IN");
+                    "₹" + collected.toLocaleString("en-IN");
+
                 document.getElementById("pendingFees").textContent =
-                "₹" + Math.max(0, totalFees - collected).toLocaleString("en-IN");
+                    "₹" + Math.max(0, totalFees - collected)
+                    .toLocaleString("en-IN");
 
                 document.getElementById("databaseStatus").textContent =
-                "Database connected successfully.";
+                    "Database connected successfully.";
+
             } catch (error) {
                 document.getElementById("databaseStatus").textContent =
-                "Database connection failed. Please reload the page.";
+                    "Database connection failed. Please reload the page.";
+
                 console.error(error);
             }
         }

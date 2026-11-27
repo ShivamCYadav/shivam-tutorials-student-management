@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings | Shivam Tutorials</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <main class="container">
+    <h1>Settings & Data Management</h1>
+    <p>Shivam Tutorials Student Management System</p>
+
+    <section class="card">
+      <h2>Database Management</h2>
+      <p>
+        Resetting the database permanently removes all student,
+        attendance, payment and settings records.
+      </p>
+
+      <button id="resetBtn" type="button">
+        Reset Entire Database
+      </button>
+
+      <p id="message" role="status"></p>
+    </section>
+
+    <a href="../index.html">← Back to Dashboard</a>
+  </main>
+
+  <script src="../js/database.js"></script>
+
+  <script>
+    const resetBtn = document.getElementById("resetBtn");
+    const message = document.getElementById("message");
+
+    resetBtn.addEventListener("click", async () => {
+      const firstConfirm = confirm(
+        "WARNING: This will delete ALL students, attendance, fees and settings. Continue?"
+      );
+
+      if (!firstConfirm) return;
+
+      const secondConfirm = confirm(
+        "Are you absolutely sure? This action cannot be undone."
+      );
+
+      if (!secondConfirm) return;
+
+      resetBtn.disabled = true;
+      message.textContent = "Resetting database...";
+
+      try {
+        await DB.resetAll();
+
+        message.textContent =
+          "Database reset successfully! Reloading...";
+
+        setTimeout(() => {
+          window.location.href = "../index.html";
+        }, 1500);
+
+      } catch (error) {
+        console.error(error);
+        message.textContent =
+          "Reset failed: " + error.message;
+
+        resetBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
